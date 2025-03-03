@@ -1,0 +1,68 @@
+Sau khi đã cài đặt thành công Board STM32 chúng ta tiến hành cài đặt để có thể code STM32
+Bước 1: Truy cập C:/Users/PC/.platformio/platforms/ststm32/builder tại dòng 312 tìm trước hàng
+elif upload_protocol in debug_tools:
+
+Chèn đoạn code sau vào
+
+    # ==========code mới thêm vào==================================
+elif upload_protocol == "weact-hid":
+    def __configure_upload_port(env):
+        return basename(env.subst("$UPLOAD_PORT"))
+
+    env.Replace(
+        __configure_upload_port=__configure_upload_port,
+        UPLOADER = "WeAct_HID_Flash-CLI",
+        UPLOADCMD ='$UPLOADER "$SOURCES" "${__configure_upload_port(__env__)}" "reboot"'
+    )
+    upload_actions = [
+        env.VerboseAction(env.AutodetectUploadPort, "Looking for upload port..."),
+        env.VerboseAction("$UPLOADCMD", "Uploading $SOURCE")
+    ]
+    #================================================================
+
+Bước 2:  Truy cập {mã chip hoặc loại board đang sài}.json tại .platformio/platforms/ststm32/boards
+VD: genericSTM32F401CD.json
+
+tại dòng
+"protocols":[
+]
+chèn vào thêm “weact-hid”
+
+    "protocols": [
+      "blackmagic",
+      "dfu",
+      "jlink",
+      "serial",
+      "stlink",
+      "weact-hid"
+    ]
+
+Bước 3: Truy cập .platformio\packages\tool-stm32duino
+Coppy app WeAct_HID_Flash-CLI.exe và dán vào đó
+Có thể truy cập để tải app:
+https://github.com/WeActStudio/WeActStudio.MiniSTM32F4x1/tree/master/Soft/WeAct_HID_FW_Bootloader
+
+Bước 4: Truy cập .platformio/packages/framework-arduinoststm32/tools/platformio/platformio-build.py
+Tìm khoản dòng 135 phía trước dòng elif upload_protocol == “dfu”:
+    #========== code mới thêm và=====================
+    elif upload_protocol == "weact-hid":
+        if mcu.startswith("stm32f1"):
+            offset = 0x800
+        elif mcu.startswith("stm32f4"):
+            offset = 0x4000
+
+        env.Append(CPPDEFINES=["WA_HID"])
+    #================================================
+
+Bước 5: Thay đổi file platformio.ini
+Thêm các dòng sau vào file
+
+upload_protocol = weact-hid
+build_flags =
+    -D HAL_UART_MODULE_ENABLED
+    -D PIO_FRAMEWORK_ARDUINO_ENABLE_CDC
+board_upload_method_weacthidmethod = WeAct_HID_Bootloader
+board_upload_method_weacthidmethod_upload_protocol = hid22
+board_upload_method_weacthidmethod_upload_tool = weact_hid_upload
+board_upload_method_weacthidmethod_build_bootloader_flags = -DBL_HID -DVECT_TAB_OFFSET={build_flash_offset}
+upload_port = USB\VID_0483&PID_572A
